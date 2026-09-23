@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css?v=20260826_v42" />
+   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js">
 </head>
 <body>
 
@@ -1148,8 +1150,127 @@
   // Agar aap chahte hain ki seedha dashboard khule, toh niche wali line uncomment kar dein:
   // loginPage.style.display = 'none';
   // dashboardPage.style.display = 'flex';
+// ==========================================
+// FIREBASE CONNECTION CODE (YAHAN DAALO)
+// ==========================================
+let db = null;
+let devicesRef = null;
 
+window.handleConnect = function() {
+  const url = document.getElementById('input-url').value.trim();
+  const key = document.getElementById('input-key').value.trim();
+  
+  if (!url) {
+    document.getElementById('form-error').textContent = 'Firebase URL daalo';
+    return;
+  }
+  
+  document.getElementById('btn-connect-text').textContent = 'Connecting...';
+  
+  const firebaseConfig = {
+    apiKey: key || "dummy",
+    databaseURL: url,
+  };
+  
+  try {
+    if (firebase.apps.length === 0) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.database();
+    devicesRef = db.ref('devices');
+    
+    // Real-time data listen karo
+    devicesRef.on('value', (snapshot) => {
+      const data = snapshot.val();
+      console.log('Devices data:', data);
+      
+      // Login page hatao, dashboard dikhao
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('dashboard-page').style.display = 'flex';
+      document.getElementById('loading-state').classList.remove('visible');
+      
+      if (!data || Object.keys(data).length === 0) {
+        document.getElementById('empty-state').classList.add('visible');
+        return;
+      }
+      
+      renderDevices(data);
+    });
+    
+  } catch(err) {
+    document.getElementById('form-error').textContent = 'Error: ' + err.message;
+    document.getElementById('btn-connect-text').textContent = 'Save & Connect';
+  }
+};
 
+function renderDevices(data) {
+  const grid = document.getElementById('cards-grid');
+  const container = document.getElementById('cards-container');
+  container.style.display = 'block';
+  grid.innerHTML = '';
+  
+  let total = 0, online = 0, offline = 0;
+  
+  Object.keys(data).forEach(deviceId => {
+    const device = data[deviceId];
+    if (typeof device !== 'object') return;
+    
+    total++;
+    const isOnline = device.online === true || device.status === 'online';
+    if (isOnline) online++; else offline++;
+    
+    const card = `
+      <div class="device-card" onclick="openDeviceDetail('${deviceId}')">
+        <div class="device-card-header">
+          <div class="device-card-title">
+            <div class="device-icon-sm">📱</div>
+            <div>
+              <p class="device-name">${device.model || 'Unknown Device'}</p>
+              <p class="device-id">${deviceId}</p>
+            </div>
+          </div>
+        </div>
+        <div class="device-info-grid">
+          <div class="device-info-item">
+            <span class="device-info-label">Battery</span>
+            <span class="device-info-value">${device.battery || '?'}%</span>
+          </div>
+          <div class="device-info-item">
+            <span class="device-info-label">Network</span>
+            <span class="device-info-value">${device.network || '?'}</span>
+          </div>
+        </div>
+        <div class="device-status-row">
+          <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
+          <span>${isOnline ? 'Online' : 'Offline'}</span>
+        </div>
+      </div>
+    `;
+    grid.innerHTML += card;
+  });
+  
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-online').textContent = online;
+  document.getElementById('stat-offline').textContent = offline;
+  }
+window.closeShareModal = function() {
+  document.getElementById('share-modal').style.display = 'none';
+};
+
+window.copyShareLink = function() {
+  const input = document.getElementById('share-link-text');
+  if(input) {
+    const text = input.textContent || input.innerText;
+    navigator.clipboard.writeText(text).then(() => alert('Link Copied!'));
+  }
+};
+  window.openDeviceDetail = function(deviceId) {
+  // Filhal demo ke liye detail panel kholo
+  document.getElementById('detail-name').textContent = 'Device';
+  document.getElementById('detail-dev-id').textContent = deviceId;
+  document.getElementById('detail-overlay').classList.add('active');
+};
+  
 </script>
 </body>
 </html>
